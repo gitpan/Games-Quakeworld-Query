@@ -19,7 +19,7 @@ use IO::Socket;
 
 use vars qw($VERSION);
 
-$VERSION = "0.33";
+$VERSION = "0.34";
 
 # Here's the different values for the server. These should be quite up to date, but who knows
 # if the server software changes.
@@ -176,11 +176,11 @@ Games::Quakeworld::Query - A class for querying QuakeWorld servers
 
 =head1 SYNOPSIS
 
-use Games::Quakeworld::Query;
+    use Games::Quakeworld::Query;
 
-my $QWQ = Games::Quakeworld::Query->new("quake.server.com", "27500");
-my %info = $QWQ->getinfo();
-print "Server uses map: ".$info{map}."\n";
+    my $QWQ = Games::Quakeworld::Query->new("quake.server.com", "27500");
+    my %info = $QWQ->getinfo();
+    print "Server uses map: ".$info{map}."\n";
 
 =head1 DESCRIPTION
 
@@ -228,7 +228,7 @@ This is just the beginning of the end :)
 
 =head1 BUGS
 
-If you report any bugs in my code, please e-mail me.
+If you report any bugs, please e-mail me.
 
 =head1 AUTHORS
 
