@@ -19,7 +19,7 @@ use IO::Socket;
 
 use vars qw($VERSION);
 
-$VERSION = "0.34";
+$VERSION = "0.35";
 
 # Here's the different values for the server. These should be quite up to date, but who knows
 # if the server software changes.
@@ -88,8 +88,12 @@ sub new {
     $self->{port} = shift || 27500;
     $self->{info} = {};
     $self->{players} = undef;
+	$self->{failed} = undef;
     bless $self, $class;
     $self->_init($self->{server}, $self->{port});
+	if ($self->{failed}) {
+		return undef;
+	}
     return $self;
 }
 
@@ -106,13 +110,17 @@ sub _init {
     my $sock = IO::Socket::INET->new(Proto => "udp", 
                                      PeerAddr => $server, 
                                      PeerPort => $port, 
-                                     Blocking => 1,) 
-     or return undef;
-    $sock->autoflush(1);
+									 Timeout => 5,) 
+     or $self->{failed} = 1;
+   
+	# oops!
+	return undef if $self->{failed};
+
+	$sock->autoflush(1);
 
     # send some stuff
-    $sock->syswrite($cmd, length($cmd));
-    $recvd = $sock->sysread($buffer, 9000) or return undef;
+    $sock->syswrite($cmd, length($cmd)) or $self->{failed} = 1;
+    $recvd = $sock->sysread($buffer, 9000) or $self->{failed} = 1;
     $buffer =~ s/\337//g; # strip the weird charachters
 
     my ($sinfo, @players) = split("\n", $buffer); # from \n starts the players. we don't care about that now.
@@ -134,8 +142,17 @@ sub _init {
     }
 }
 
-# Returns the info
-sub getinfo { return %{shift->{info}}; }
+# Returns the info, in a hash. OBSOLETED!
+sub getinfo { 
+	my $self = shift;
+	if (defined($self->{info})) {
+		return $self->{info};
+	}
+	else { 
+		return undef;
+	}
+}
+ 
 
 # Just print the values
 sub dumpinfo {
@@ -155,6 +172,7 @@ sub get {
 # Returns the long name of a map
 sub map_long {
     my $self = shift;
+	return undef if !defined($self->{info}{map});
     foreach my $map (keys %maps) {
         if ($map eq $self->{info}{map}) {
             return $maps{$map};
@@ -162,6 +180,7 @@ sub map_long {
     }
     return undef;
 }
+
 
 sub players { 
     my $self = shift;
@@ -179,13 +198,13 @@ Games::Quakeworld::Query - A class for querying QuakeWorld servers
     use Games::Quakeworld::Query;
 
     my $QWQ = Games::Quakeworld::Query->new("quake.server.com", "27500");
-    my %info = $QWQ->getinfo();
-    print "Server uses map: ".$info{map}."\n";
+    my %info = $QWQ->getinfo(); # obsoleted, use $qwq->get("") instead
+    print "Server uses map: ".$qwq->get("map")."\n";
 
 =head1 DESCRIPTION
 
-Hello, welcome to a work in process module, Games::Quakeworld::Query.
-This is a class made for querying Quakeworld (Quake 1) game servers
+Hello, this is Games::Quakeworld::Query, a perl module.
+It is a class made for querying Quakeworld (Quake 1) game servers
 and getting their informations, that is map name, players, hostname and etc.
 
 =head1 OVERVIEW
@@ -196,26 +215,41 @@ in hand if you are a Quake 1 player and i.e. like to use this in a CGI
 application and check the server with it before you go there.
 
 I wrote this because I needed it; I am planning to implement it in a IRC bot
-and later write a nice CGI script for it.
+and later write a nice CGI script for it. At the moment I use it in a IRC bot,
+powered by Net::IRC ;).
 
 =head1 CONSTRUCTOR
 
 =item new (HOST [, PORT])
 
 Instances a query to B<HOST> at the port B<PORT>. If B<PORT> is omitted,
-the default port 27500 is used.
+the default port 27500 is used. If it succeeds, it returns $self, or in a 
+case of error it returns undef.
 
 =head1 METHODS
 
+Here are the module methods in an alphabetical order.
+
+=item dumpinfo
+
+Loops trough the server info and prints out something like "var = value".
+
 =item getinfo
 
+B<OBSOLETED - use get("var") instead!>
 Returns a hash containing the server information, i.e. %hash = ...->getinfo();
 print %hash{map}. See the beginning of the source of this module to see the 
 available informations.
 
 =item get (SOMETHING)
 
-Returns B<SOMETHING> from the server info. That is, $map = getinfo(map);
+Returns B<SOMETHING> from the server info. That is, $map = get("map");
+Returns undef in case of failure.
+
+=item map_long
+
+Returns a long name of the current map. See the %maps hash in the beginning of
+the source of this module. 
 
 =item players
 
@@ -223,12 +257,12 @@ Returns the number of players in the server.
 
 =head1 TODO
 
-Player (...search) and a class for it, and lots of more.
+Player search and a class for it, and lots of more.
 This is just the beginning of the end :)
 
 =head1 BUGS
 
-If you report any bugs, please e-mail me.
+If you report any bugs in my code, please e-mail me.
 
 =head1 AUTHORS
 
